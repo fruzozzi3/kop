@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Копилка</string>
+    <string name="add_money">Добавить</string>
+    <string name="withdraw_money">Снять</string>
+    <string name="settings">Настройки</string>
+    <string name="currency">Валюта</string>
+    <string name="uah">Гривна (₴)</string>
+    <string name="rub">Рубль (₽)</string>
+    <string name="usd">Доллар ($)</string>
+    <string name="note">Заметка</string>
+    <string name="amount">Сумма</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="history">История</string>
+    <string name="empty_history">Пока нет операций</string>
+</resources>
