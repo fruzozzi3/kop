@@ -1,16 +1,25 @@
 name: Android CI
 
 on:
+<<<<<<< HEAD
   workflow_dispatch: # Включает кнопку ручного запуска
   push:
     branches:
       - main # Можешь поменять на свою ветку
+=======
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+>>>>>>> 5023791 (Добавлен gradle wrapper)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+<<<<<<< HEAD
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -19,10 +28,34 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+=======
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+>>>>>>> 5023791 (Добавлен gradle wrapper)
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+<<<<<<< HEAD
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
@@ -31,3 +64,44 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+=======
+    - name: Clean project
+      run: ./gradlew clean --stacktrace
+
+    - name: Check Gradle version
+      run: ./gradlew --version
+
+    - name: List project structure
+      run: |
+        echo "Project structure:"
+        find . -name "*.gradle*" -o -name "gradle.properties" -o -name "local.properties" | head -20
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace --info --no-daemon --no-configuration-cache
+
+    - name: List APK outputs
+      run: |
+        echo "Looking for APK files:"
+        find . -name "*.apk" -type f
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: kopilka-debug-apk
+        path: |
+          app/build/outputs/apk/debug/*.apk
+          **/build/outputs/apk/debug/*.apk
+        retention-days: 30
+
+    - name: Upload build logs on failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          build/reports/
+          app/build/reports/
+          **/build/reports/
+        retention-days: 5
+>>>>>>> 5023791 (Добавлен gradle wrapper)
