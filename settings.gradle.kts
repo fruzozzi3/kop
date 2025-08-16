@@ -12,5 +12,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Kopilka"
+
+rootProject.name = "kop"
 include(":app")

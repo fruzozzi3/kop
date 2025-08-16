@@ -1,34 +1,17 @@
-name: Android CI
+name: Build Android APK
 
 on:
-<<<<<<< HEAD
-  workflow_dispatch: # Включает кнопку ручного запуска
-  push:
-    branches:
-      - main # Можешь поменять на свою ветку
-=======
   workflow_dispatch:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
->>>>>>> 5023791 (Добавлен gradle wrapper)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-<<<<<<< HEAD
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-=======
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -41,6 +24,65 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: 8.7
+
+    - name: Check for conflicting build files
+      run: |
+        echo "=== Checking for conflicting files ==="
+        echo "Root gradle files:"
+        ls -la *.gradle* 2>/dev/null || echo "No gradle files in root"
+        echo ""
+        echo "App gradle files:"
+        ls -la app/*.gradle* 2>/dev/null || echo "No gradle files in app"
+        echo ""
+        
+        # Проверяем конфликты
+        if [ -f "build.gradle" ] && [ -f "build.gradle.kts" ]; then
+          echo "❌ CONFLICT: Both build.gradle and build.gradle.kts exist in root"
+          echo "Removing build.gradle to avoid conflict..."
+          rm build.gradle
+        fi
+        
+        if [ -f "settings.gradle" ] && [ -f "settings.gradle.kts" ]; then
+          echo "❌ CONFLICT: Both settings.gradle and settings.gradle.kts exist"
+          echo "Removing settings.gradle to avoid conflict..."
+          rm settings.gradle
+        fi
+        
+        if [ -f "app/build.gradle" ] && [ -f "app/build.gradle.kts" ]; then
+          echo "❌ CONFLICT: Both app/build.gradle and app/build.gradle.kts exist"
+          echo "Removing app/build.gradle to avoid conflict..."
+          rm app/build.gradle
+        fi
+
+    - name: Create gradle.properties if missing
+      run: |
+        if [ ! -f "gradle.properties" ]; then
+          echo "Creating gradle.properties..."
+          cat > gradle.properties << 'EOF'
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        org.gradle.parallel=true
+        android.useAndroidX=true
+        kotlin.code.style=official
+        android.nonTransitiveRClass=true
+        EOF
+        fi
+
+    - name: Verify final project structure
+      run: |
+        echo "=== Final project structure ==="
+        echo "Root files:"
+        ls -la *.gradle* *.properties 2>/dev/null || echo "No config files"
+        echo ""
+        echo "App files:"  
+        ls -la app/*.gradle* 2>/dev/null || echo "No app gradle files"
+        echo ""
+        echo "Gradle wrapper:"
+        ls -la gradle/wrapper/ 2>/dev/null || echo "No wrapper"
+
     - name: Cache Gradle packages
       uses: actions/cache@v4
       with:
@@ -50,34 +92,15 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
->>>>>>> 5023791 (Добавлен gradle wrapper)
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+    - name: Validate Gradle configuration
+      run: gradle projects --info
 
-<<<<<<< HEAD
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-=======
     - name: Clean project
-      run: ./gradlew clean --stacktrace
-
-    - name: Check Gradle version
-      run: ./gradlew --version
-
-    - name: List project structure
-      run: |
-        echo "Project structure:"
-        find . -name "*.gradle*" -o -name "gradle.properties" -o -name "local.properties" | head -20
+      run: gradle clean --stacktrace
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --info --no-daemon --no-configuration-cache
+      run: gradle :app:assembleDebug --stacktrace --info
 
     - name: List APK outputs
       run: |
@@ -88,20 +111,18 @@ jobs:
       uses: actions/upload-artifact@v4
       if: success()
       with:
-        name: kopilka-debug-apk
+        name: kop-debug-apk
         path: |
           app/build/outputs/apk/debug/*.apk
-          **/build/outputs/apk/debug/*.apk
         retention-days: 30
 
-    - name: Upload build logs on failure
+    - name: Upload build reports on failure
       uses: actions/upload-artifact@v4
       if: failure()
       with:
-        name: build-logs
+        name: build-reports
         path: |
           build/reports/
           app/build/reports/
           **/build/reports/
         retention-days: 5
->>>>>>> 5023791 (Добавлен gradle wrapper)
