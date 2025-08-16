@@ -24,74 +24,6 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: 8.2
-
-    - name: Check for conflicting build files
-      run: |
-        echo "=== Checking for conflicting files ==="
-        if [ -f "build.gradle" ] && [ -f "build.gradle.kts" ]; then
-          echo "❌ CONFLICT: Both build.gradle and build.gradle.kts exist in root"
-          rm build.gradle
-        fi
-        if [ -f "settings.gradle" ] && [ -f "settings.gradle.kts" ]; then
-          echo "❌ CONFLICT: Both settings.gradle and settings.gradle.kts exist"
-          rm settings.gradle
-        fi
-        if [ -f "app/build.gradle" ] && [ -f "app/build.gradle.kts" ]; then
-          echo "❌ CONFLICT: Both app/build.gradle and app/build.gradle.kts exist"
-          rm app/build.gradle
-        fi
-
-    - name: Create gradle.properties if missing
-      run: |
-        if [ ! -f "gradle.properties" ]; then
-          echo "Creating gradle.properties..."
-          cat > gradle.properties << 'EOF'
-        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        org.gradle.parallel=true
-        android.useAndroidX=true
-        kotlin.code.style=official
-        android.nonTransitiveRClass=true
-        android.enableJetifier=true
-        EOF
-        fi
-
-    - name: Check and fix resource files
-      run: |
-        echo "=== Checking resource files ==="
-        find app/src/main/res -name "*.xml" -exec echo "Found: {}" \;
-        
-        # Проверяем основные файлы ресурсов
-        if [ ! -f "app/src/main/res/values/strings.xml" ]; then
-          echo "Creating minimal strings.xml..."
-          mkdir -p app/src/main/res/values
-          cat > app/src/main/res/values/strings.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <string name="app_name">Kopilka</string>
-        </resources>
-        EOF
-        fi
-        
-        if [ ! -f "app/src/main/res/values/colors.xml" ]; then
-          echo "Creating minimal colors.xml..."
-          cat > app/src/main/res/values/colors.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <color name="purple_200">#FFBB86FC</color>
-            <color name="purple_500">#FF6200EE</color>
-            <color name="purple_700">#FF3700B3</color>
-            <color name="teal_200">#FF03DAC5</color>
-            <color name="teal_700">#FF018786</color>
-            <color name="black">#FF000000</color>
-            <color name="white">#FFFFFFFF</color>
-        </resources>
-        EOF
-        fi
-
     - name: Cache Gradle packages
       uses: actions/cache@v4
       with:
@@ -102,42 +34,28 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Validate Gradle configuration
-      run: gradle projects --info
+    - name: Make Gradle executable
+      run: chmod +x ./gradlew
 
-    - name: Clean project
-      run: gradle clean --stacktrace
-
-    - name: Build Debug APK with better error handling
+    - name: Create local.properties
       run: |
-        echo "=== Building APK with detailed logging ==="
-        gradle :app:assembleDebug --stacktrace --info --no-daemon \
-          -Porg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
-          -Pandroid.enableAapt2=false || \
-        gradle :app:assembleDebug --stacktrace --info --no-daemon \
-          -Porg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-    - name: List APK outputs
+    - name: Build Debug APK
       run: |
-        echo "Looking for APK files:"
-        find . -name "*.apk" -type f
+        ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      if: success()
       with:
-        name: kop-debug-apk
-        path: |
-          app/build/outputs/apk/debug/*.apk
+        name: app-debug
+        path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
 
-    - name: Upload build reports on failure
-      uses: actions/upload-artifact@v4
+    - name: Upload Build Reports
       if: failure()
+      uses: actions/upload-artifact@v4
       with:
         name: build-reports
-        path: |
-          build/reports/
-          app/build/reports/
-          **/build/reports/
+        path: app/build/reports
         retention-days: 5
