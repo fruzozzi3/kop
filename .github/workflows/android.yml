@@ -34,8 +34,19 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
+    - name: Setup Gradle
+      run: |
+        wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+        unzip -q gradle-8.7-bin.zip
+        mv gradle-8.7 /opt/gradle
+        export GRADLE_HOME=/opt/gradle
+        export PATH=${GRADLE_HOME}/bin:${PATH}
+        gradle wrapper
+
     - name: Make Gradle executable
-      run: chmod +x ./gradlew
+      run: |
+        chmod +x ./gradlew
+        ./gradlew --version
 
     - name: Create local.properties
       run: |
@@ -43,10 +54,11 @@ jobs:
 
     - name: Build Debug APK
       run: |
-        ./gradlew assembleDebug --stacktrace
+        ./gradlew assembleDebug --stacktrace --info
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/*.apk
@@ -57,5 +69,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: build-reports
-        path: app/build/reports
+        path: |
+          app/build/reports
+          build/reports
         retention-days: 5
