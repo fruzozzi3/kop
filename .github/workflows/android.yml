@@ -32,29 +32,16 @@ jobs:
     - name: Check for conflicting build files
       run: |
         echo "=== Checking for conflicting files ==="
-        echo "Root gradle files:"
-        ls -la *.gradle* 2>/dev/null || echo "No gradle files in root"
-        echo ""
-        echo "App gradle files:"
-        ls -la app/*.gradle* 2>/dev/null || echo "No gradle files in app"
-        echo ""
-        
-        # Проверяем конфликты
         if [ -f "build.gradle" ] && [ -f "build.gradle.kts" ]; then
           echo "❌ CONFLICT: Both build.gradle and build.gradle.kts exist in root"
-          echo "Removing build.gradle to avoid conflict..."
           rm build.gradle
         fi
-        
         if [ -f "settings.gradle" ] && [ -f "settings.gradle.kts" ]; then
           echo "❌ CONFLICT: Both settings.gradle and settings.gradle.kts exist"
-          echo "Removing settings.gradle to avoid conflict..."
           rm settings.gradle
         fi
-        
         if [ -f "app/build.gradle" ] && [ -f "app/build.gradle.kts" ]; then
           echo "❌ CONFLICT: Both app/build.gradle and app/build.gradle.kts exist"
-          echo "Removing app/build.gradle to avoid conflict..."
           rm app/build.gradle
         fi
 
@@ -68,20 +55,42 @@ jobs:
         android.useAndroidX=true
         kotlin.code.style=official
         android.nonTransitiveRClass=true
+        android.enableJetifier=true
         EOF
         fi
 
-    - name: Verify final project structure
+    - name: Check and fix resource files
       run: |
-        echo "=== Final project structure ==="
-        echo "Root files:"
-        ls -la *.gradle* *.properties 2>/dev/null || echo "No config files"
-        echo ""
-        echo "App files:"  
-        ls -la app/*.gradle* 2>/dev/null || echo "No app gradle files"
-        echo ""
-        echo "Gradle wrapper:"
-        ls -la gradle/wrapper/ 2>/dev/null || echo "No wrapper"
+        echo "=== Checking resource files ==="
+        find app/src/main/res -name "*.xml" -exec echo "Found: {}" \;
+        
+        # Проверяем основные файлы ресурсов
+        if [ ! -f "app/src/main/res/values/strings.xml" ]; then
+          echo "Creating minimal strings.xml..."
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">Kopilka</string>
+        </resources>
+        EOF
+        fi
+        
+        if [ ! -f "app/src/main/res/values/colors.xml" ]; then
+          echo "Creating minimal colors.xml..."
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <color name="purple_200">#FFBB86FC</color>
+            <color name="purple_500">#FF6200EE</color>
+            <color name="purple_700">#FF3700B3</color>
+            <color name="teal_200">#FF03DAC5</color>
+            <color name="teal_700">#FF018786</color>
+            <color name="black">#FF000000</color>
+            <color name="white">#FFFFFFFF</color>
+        </resources>
+        EOF
+        fi
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
@@ -99,8 +108,14 @@ jobs:
     - name: Clean project
       run: gradle clean --stacktrace
 
-    - name: Build Debug APK
-      run: gradle :app:assembleDebug --stacktrace --info
+    - name: Build Debug APK with better error handling
+      run: |
+        echo "=== Building APK with detailed logging ==="
+        gradle :app:assembleDebug --stacktrace --info --no-daemon \
+          -Porg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+          -Pandroid.enableAapt2=false || \
+        gradle :app:assembleDebug --stacktrace --info --no-daemon \
+          -Porg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
     - name: List APK outputs
       run: |
